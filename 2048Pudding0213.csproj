@@ -283,11 +283,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Scripts\BlockData.cs" />
-    <Compile Include="Assets\Scripts\BlockScript.cs" />
     <Compile Include="Assets\Scripts\BlockView.cs" />
     <Compile Include="Assets\Scripts\GameManager.cs" />
     <Compile Include="Assets\Scripts\GamingLogic2048.cs" />
-    <Compile Include="Assets\Scripts\ViewControll.cs" />
+    <Compile Include="Assets\Scripts\ObjectPool.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="GenerateTargetFrameworkMonikerAttribute" />

@@ -117,37 +117,10 @@ public class BlockData
     {
         return this.m_iBlockValue;
     }
-    public void SetNeighbor(BlockData _anotherBlock, GamingLogic2048.EPushingDirection _direction)
+    public void SetNeighbor(BlockData _anotherBlock, GamingLogic2048.EPushingDirection _eDirection)
     {
-        int iThisToNeighbor = (int)_direction; //自己看鄰居的方向
-        int iNeighborToThis = 0; //鄰居看自己的方向
-        switch (_direction)
-        {
-            case GamingLogic2048.EPushingDirection.Left:
-                iNeighborToThis = (int)GamingLogic2048.EPushingDirection.Right;
-                break;
-            case GamingLogic2048.EPushingDirection.Right:
-                iNeighborToThis = (int)GamingLogic2048.EPushingDirection.Left;
-                break;
-            case GamingLogic2048.EPushingDirection.Up:
-                iNeighborToThis = (int)GamingLogic2048.EPushingDirection.Down;
-                break;
-            case GamingLogic2048.EPushingDirection.Down:
-                iNeighborToThis = (int)GamingLogic2048.EPushingDirection.Up;
-                break;
-            case GamingLogic2048.EPushingDirection.TopLeft:
-                iNeighborToThis = (int)GamingLogic2048.EPushingDirection.BottomRight;
-                break;
-            case GamingLogic2048.EPushingDirection.BottomLeft:
-                iNeighborToThis = (int)GamingLogic2048.EPushingDirection.TopRight;
-                break;
-            case GamingLogic2048.EPushingDirection.TopRight:
-                iNeighborToThis = (int)GamingLogic2048.EPushingDirection.BottomLeft;
-                break;
-            case GamingLogic2048.EPushingDirection.BottomRight:
-                iNeighborToThis = (int)GamingLogic2048.EPushingDirection.TopLeft;
-                break;
-        }
+        int iThisToNeighbor = (int)_eDirection; //自己看鄰居的方向
+        int iNeighborToThis = (int)GamingLogic2048.GetOppositeDirection(_eDirection); //鄰居看自己的方向
         this.m_arrNeighbor[iThisToNeighbor] = _anotherBlock;
         _anotherBlock.m_arrNeighbor[iNeighborToThis] = this;
     }

@@ -4,16 +4,16 @@ using UnityEngine;
 
 public class GamingLogic2048
 {
-    public enum EPushingDirection
+    public enum EPushingDirection //推動的方向，特別注意，方向必須以互為相反的排在一起，兩兩成對，因為這樣才方便讓函式取得相反方向
     {
         Left,
         Right,
         Up,
         Down,
         TopLeft,
-        BottomLeft,
+        BottomRight,
         TopRight,
-        BottomRight
+        BottomLeft
     }
 
     private List<BlockData> m_listBoard; //整個棋盤
@@ -33,17 +33,67 @@ public class GamingLogic2048
         {
             m_listBoard.Add(new BlockData());
         }
+        for (int i = 0; i < m_iLengthY; i++)
+        {
+            for (int j = 0; j < m_iLengthX; j++)
+            {
+                int iSetting = i * m_iLengthX + j; //依照順序找出各別需要設定的格子，接著再去依照八個方位設定關係
+                int iNeighbor; //用來記錄周遭八方位之座標
+
+                iNeighbor = iSetting - 1;
+                if (iNeighbor >= i * m_iLengthX)
+                {
+                    m_listBoard[iSetting].SetNeighbor(m_listBoard[iNeighbor], EPushingDirection.Left);
+                }
+                iNeighbor = iSetting + 1;
+                if (iNeighbor < (i + 1) * m_iLengthX)
+                {
+                    m_listBoard[iSetting].SetNeighbor(m_listBoard[iNeighbor], EPushingDirection.Right);
+                }
+                iNeighbor = iSetting - m_iLengthX;
+                if (iNeighbor >= 0)
+                {
+                    m_listBoard[iSetting].SetNeighbor(m_listBoard[iNeighbor], EPushingDirection.Up);
+                }
+                iNeighbor = iSetting + m_iLengthX;
+                if (iNeighbor < m_iBoardSize)
+                {
+                    m_listBoard[iSetting].SetNeighbor(m_listBoard[iNeighbor], EPushingDirection.Down);
+                }
+                iNeighbor = iSetting - m_iLengthX - 1;
+                if (iNeighbor >= (i - 1) * m_iLengthX && iNeighbor >= 0)
+                {
+                    m_listBoard[iSetting].SetNeighbor(m_listBoard[iNeighbor], EPushingDirection.TopLeft);
+                }
+                iNeighbor = iSetting + m_iLengthX + 1;
+                if (iNeighbor < (i + 1) * m_iLengthX && iNeighbor < m_iBoardSize)
+                {
+                    m_listBoard[iSetting].SetNeighbor(m_listBoard[iNeighbor], EPushingDirection.BottomRight);
+                }
+                iNeighbor = iSetting - m_iLengthX + 1;
+                if (iNeighbor < i * m_iLengthX && iNeighbor >= 0)
+                {
+                    m_listBoard[iSetting].SetNeighbor(m_listBoard[iNeighbor], EPushingDirection.TopRight);
+                }
+                iNeighbor = iSetting + m_iLengthX - 1;
+                if (iNeighbor >= (i + 1) * m_iLengthX && iNeighbor < m_iBoardSize)
+                {
+                    m_listBoard[iSetting].SetNeighbor(m_listBoard[iNeighbor], EPushingDirection.BottomLeft);
+                }
+            }
+        }
     }
     public GamingLogic2048() //最基本的遊戲開局
         : this(4, 4, 0)
     {
-    }    
+    }
 
     public void SpawnBlock(int _iSpawnPos, BlockData _block) //生成格子
     {
         if (this.m_listBoard != null && _iSpawnPos < this.m_iBoardSize)//只在棋盤有被生出來，而且你選定的索引值在範圍內時才允許生成
         {
-            this.m_listBoard[_iSpawnPos] = _block;
+            this.m_listBoard[_iSpawnPos].SetBlockValue(_block.GetBlockValue());
+            this.m_listBoard[_iSpawnPos].SetBlockType(_block.GetBlockType());
         }
     }
 
@@ -66,223 +116,70 @@ public class GamingLogic2048
         }
     }
 
-    private List<List<int>> GetPushingList(EPushingDirection _ePushingDirection) //獲得正要進行 "壓縮" 的行線群，所以是list(行線)的list(群)之索引值
+    private List<List<BlockData>> GetPushingList(EPushingDirection _ePushingDirection) //獲得正要進行 "壓縮" 的行線群，所以是list(行線)的list(群)
     {
-        List<List<int>> listPushing = new List<List<int>>();
-        switch (_ePushingDirection)
+        List<List<BlockData>> listPushing = new List<List<BlockData>>();
+        List<int> listPushingPoint = this.GetPushingPoint(_ePushingDirection);
+        EPushingDirection eCombineDir = GetOppositeDirection(_ePushingDirection);
+        foreach (int iStartPoint in listPushingPoint)
         {
-            case EPushingDirection.Left:
-                for (int i = 0; i < m_iLengthY; i++)
-                {
-                    List<int> listPushingLine = new List<int>();
-                    for (int j = 0; j < m_iLengthX; j++)
-                    {
-                        int iChosen = (i * m_iLengthX) + j;
-                        listPushingLine.Add(iChosen);
-                    }
-                    listPushing.Add(listPushingLine);
-                }
-                break;
-            case EPushingDirection.Right:
-                for (int i = 0; i < m_iLengthY; i++)
-                {
-                    List<int> listPushingLine = new List<int>();
-                    for (int j = 0; j < m_iLengthX; j++)
-                    {
-                        int iChosen = ((i + 1) * m_iLengthX - 1) - j;
-                        listPushingLine.Add(iChosen);
-                    }
-                    listPushing.Add(listPushingLine);
-                }
-                break;
-            case EPushingDirection.Up:
-                for (int i = 0; i < m_iLengthX; i++)
-                {
-                    List<int> listPushingLine = new List<int>();
-                    for (int j = 0; j < m_iLengthY; j++)
-                    {
-                        int iChosen = i + (j * m_iLengthX);
-                        listPushingLine.Add(iChosen);
-                    }
-                    listPushing.Add(listPushingLine);
-                }
-                break;
-            case EPushingDirection.Down:
-                for (int i = 0; i < m_iLengthX; i++)
-                {
-                    List<int> listPushingLine = new List<int>();
-                    for (int j = 0; j < m_iLengthY; j++)
-                    {
-                        int iChosen = i + ((m_iLengthY - 1) - j) * m_iLengthX;
-                        listPushingLine.Add(iChosen);
-                    }
-                    listPushing.Add(listPushingLine);
-                }
-                break;
-            case EPushingDirection.TopLeft: //斜角方面，需要從起始點先往一邊(X軸方向)抓，再往下抓，所以需要兩個巢狀for
-                for (int i = 0; i < m_iLengthX; i++) //先從0,0向右找
-                {
-                    List<int> listPushingLine = new List<int>();
-                    for (int j = 0; j < (m_iLengthX - i); j++)
-                    {
-                        int iChosen = i + j + (j * m_iLengthX);
-                        if (iChosen < m_iBoardSize && iChosen < (j + 1) * m_iLengthX)
-                        {//前面的條件是不希望選中的格子超出整個棋盤範圍，後面的條件則是避免超出棋盤外圍的邊界
-                            listPushingLine.Add(iChosen);
-                        }
-                    }
-                    listPushing.Add(listPushingLine);
-                }
-                for (int i = 1; i < m_iLengthY; i++)//再從X,0(起點向下一格) 向下找
-                {
-                    List<int> listPushingLine = new List<int>();
-                    for (int j = 0; j < (m_iLengthY - i); j++)
-                    {
-                        int iChosen = i * m_iLengthX + j + (j * m_iLengthX);
-                        if (iChosen < m_iBoardSize && iChosen < (i + j + 1) * m_iLengthX)
-                        {//前面的條件是不希望選中的格子超出整個棋盤範圍，後面的條件則是避免超出棋盤外圍的邊界
-                            listPushingLine.Add(iChosen);
-                        }
-                    }
-                    listPushing.Add(listPushingLine);
-                }
-                break;
-            case EPushingDirection.BottomLeft: //往左下推，所以找格子時須往右上找
-                for (int i = 0; i < m_iLengthX; i++) //先從0,0向右找
-                {
-                    List<int> listPushingLine = new List<int>();
-                    for (int j = 0; j < (m_iLengthX - i); j++)
-                    {
-                        int iChosen = (m_iLengthY - 1) * m_iLengthX + i + j - (j * m_iLengthX);
-                        if (iChosen < m_iBoardSize && iChosen < (m_iLengthY - j) * m_iLengthX)
-                        {//前面的條件是不希望選中的格子超出整個棋盤範圍，後面的條件則是避免超出棋盤外圍的邊界
-                            listPushingLine.Add(iChosen);
-                        }
-                    }
-                    listPushing.Add(listPushingLine);
-                }
-                for (int i = 1; i < m_iLengthY; i++)
-                {
-                    List<int> listPushingLine = new List<int>();
-                    for (int j = 0; j < (m_iLengthY - i); j++)
-                    {
-                        int iChosen = (m_iLengthY - 1 - i) * m_iLengthX + j - (j * m_iLengthX);
-                        if (iChosen < m_iBoardSize && iChosen < (m_iLengthY - i - j) * m_iLengthX)
-                        {//前面的條件是不希望選中的格子超出整個棋盤範圍，後面的條件則是避免超出棋盤外圍的邊界
-                            listPushingLine.Add(iChosen);
-                        }
-                    }
-                    listPushing.Add(listPushingLine);
-                }
-                break;
-            case EPushingDirection.TopRight: //往右上推，所以找格子時須往左下找
-                for (int i = 0; i < m_iLengthX; i++) //先從0,0向右找
-                {
-                    List<int> listPushingLine = new List<int>();
-                    for (int j = 0; j <= i; j++)
-                    {
-                        int iChosen = i - j + (j * m_iLengthX);
-                        if (iChosen < m_iBoardSize && iChosen >= j * m_iLengthX)
-                        {
-                            listPushingLine.Add(iChosen);
-                        }
-                    }
-                    listPushing.Add(listPushingLine);
-                }
-                for (int i = 1; i < m_iLengthY; i++)
-                {
-                    List<int> listPushingLine = new List<int>();
-                    for (int j = 0; j < (m_iLengthY - i); j++)
-                    {
-                        int iChosen = (i + 1) * m_iLengthX - 1 - j + (j * m_iLengthX);
-                        if (iChosen < m_iBoardSize && iChosen >= (i + j) * m_iLengthX)
-                        {
-                            listPushingLine.Add(iChosen);
-                        }
-                    }
-                    listPushing.Add(listPushingLine);
-                }
-                break;
-            case EPushingDirection.BottomRight: //往右下推，所以找格子時須往左上找
-                for (int i = 0; i < m_iLengthX; i++) //先從左下往右找
-                {
-                    List<int> listPushingLine = new List<int>();
-                    for (int j = 0; j <= i; j++)
-                    {
-                        int iChosen = (m_iLengthY - 1) * m_iLengthX + i - j - (j * m_iLengthX);
-                        if (iChosen < m_iBoardSize && iChosen >= (m_iLengthY - 1 - j) * m_iLengthX)
-                        {
-                            listPushingLine.Add(iChosen);
-                        }
-                    }
-                    listPushing.Add(listPushingLine);
-                }
-                for (int i = 1; i < m_iLengthY; i++)
-                {
-                    List<int> listPushingLine = new List<int>();
-                    for (int j = 0; j < (m_iLengthY - i); j++)
-                    {
-                        int iChosen = (m_iLengthY - i) * m_iLengthX - 1 - j - (j * m_iLengthX);
-                        if (iChosen < m_iBoardSize && iChosen >= (m_iLengthY - i - 1 - j) * m_iLengthX)
-                        {
-                            listPushingLine.Add(iChosen);
-                        }
-                    }
-                    listPushing.Add(listPushingLine);
-                }
-                break;
+            BlockData blockPick = m_listBoard[iStartPoint];
+            List<BlockData> pushingLine = new List<BlockData>
+            {
+                blockPick
+            };
+            while (blockPick.GetNextCombinableBlock(eCombineDir) != null)
+            {
+                blockPick = blockPick.GetNextCombinableBlock(eCombineDir);
+                pushingLine.Add(blockPick);
+            }
+            listPushing.Add(pushingLine);
         }
         return listPushing;
     }
 
+    private List<int> GetPushingPoint(EPushingDirection _eDirection) //獲得所有該壓縮方向之起點
+    {
+        List<int> listPushingPoint = new List<int>();
+        for (int i = 0; i < m_iBoardSize; i++)
+        {
+            if (m_listBoard[i].Conbinable && m_listBoard[i].GetNextCombinableBlock(_eDirection) == null)
+            {//往某方向壓縮的起點之定義，必須要是可結合的格子(普通)，同時，他也是該方向之底，所以往該方向搜索時他找不到可結合的東西
+                listPushingPoint.Add(i);
+            }
+        }
+        return listPushingPoint;
+    }
+
     public void Pushing(EPushingDirection _ePushingDirection) //壓縮動作，只需將 "方向" 帶入
     {
-        List<List<int>> listPushing = this.GetPushingList(_ePushingDirection);
-        foreach (List<int> listPushingLine in listPushing) //挑出行線群的其中一條
+        List<List<BlockData>> listPushing = this.GetPushingList(_ePushingDirection);
+        foreach (List<BlockData> listPushingLine in listPushing) //挑出行線群的其中一條
         {
-            for (int i = 0; i < listPushingLine.Count; i++)//再針對該行線中的每個block做處理
+            for (int i = 0; i < listPushingLine.Count; i++)
             {
-                BlockData blockComparing = m_listBoard[listPushingLine[i]]; //根據行線索引值找到該block物件
-                switch (blockComparing.GetBlockType())
+                BlockData blockComparing = listPushingLine[i];
+                bool bPolling = true; //表示正在輪尋
+                for (int j = i + 1; j < listPushingLine.Count && bPolling; j++)
                 {
-                    case BlockData.EBlockType.Normal: //普通格子會朝行線的後面找到其他普通格子，並試著合併自己
-                        bool bPolling = true; //表示正在輪尋
-                        for (int j = i + 1; j < listPushingLine.Count && bPolling; j++)
+                    BlockData blockPolling = listPushingLine[j];
+                    if (blockPolling.GetBlockValue() != 0)
+                    {
+                        if (blockComparing.GetBlockValue() == 0)
                         {
-                            BlockData blockPolling = m_listBoard[listPushingLine[j]];
-                            switch (blockPolling.GetBlockType())
-                            {
-                                case BlockData.EBlockType.Normal://當遇到普通格子時，檢察其值是否不為0
-                                    if (blockPolling.GetBlockValue() != 0)
-                                    {
-                                        if (blockComparing.GetBlockValue() == 0)
-                                        {
-                                            blockComparing.PlusOn(blockPolling);
-                                        }
-                                        else if (blockComparing.GetBlockValue() == blockPolling.GetBlockValue())
-                                        {
-                                            blockComparing.PlusOn(blockPolling);
-                                            this.m_iScore += blockComparing.GetBlockValue();
-                                            bPolling = false;
-                                        }
-                                        else if (blockComparing.GetBlockValue() != blockPolling.GetBlockValue())
-                                        {
-                                            bPolling = false;
-                                        }
-                                    }
-                                    break;
-                                case BlockData.EBlockType.Obstruct://當普通格子遇到障礙時，停止輪尋
-                                    bPolling = false;
-                                    break;
-                                case BlockData.EBlockType.None: //當普通格子遇到空洞，直接跳過，但不會停止輪尋
-                                    break;
-                            }
+                            blockComparing.PlusOn(blockPolling);
                         }
-                        break;
-                    case BlockData.EBlockType.Obstruct: //障礙格子什麼都不會做，直接跳過
-                        break;
-                    case BlockData.EBlockType.None: //空洞格子什麼也不會做，直接跳過
-                        break;
+                        else if (blockComparing.GetBlockValue() == blockPolling.GetBlockValue())
+                        {
+                            blockComparing.PlusOn(blockPolling);
+                            this.m_iScore += blockComparing.GetBlockValue();
+                            bPolling = false;
+                        }
+                        else if (blockComparing.GetBlockValue() != blockPolling.GetBlockValue())
+                        {
+                            bPolling = false;
+                        }
+                    }
                 }
             }
         }
@@ -290,47 +187,40 @@ public class GamingLogic2048
 
     public bool GetPushAble(EPushingDirection _ePushingDirection)
     {
-        List<List<int>> listPushing = this.GetPushingList(_ePushingDirection);
+        List<List<BlockData>> listPushing = this.GetPushingList(_ePushingDirection);
         bool bPushAble = false;//是否可進行壓縮
-        //Debug.Log("行線群的數目 " + listPushing.Count);
         for (int i = 0; i < listPushing.Count && !bPushAble; i++) //挑出行線群的每一條行線進行檢查，若中途發現可以進行壓縮的話就跳出迴圈，因為沒有繼續檢查下去的必要
         {
             for (int j = 0; j < listPushing[i].Count - 1 && !bPushAble; j++)
             {
-                BlockData blockComparing = m_listBoard[listPushing[i][j]]; //根據行線索引值找到該block物件
-                switch (blockComparing.GetBlockType())
+                BlockData blockComparing = listPushing[i][j]; //根據行線索引值找到該block物件
+                BlockData blockPolling = listPushing[i][j + 1];
+                if (blockComparing.GetBlockValue() == 0 && blockPolling.GetBlockValue() != 0)
                 {
-                    case BlockData.EBlockType.Normal: //普通格子就會去檢查自己的下一格是否也是普通格子，且為0或跟自己相等
-                        int iNext = j + 1; //用來找出下一格的索引值
-                        BlockData blockPolling = m_listBoard[listPushing[i][iNext]];
-                        while (blockPolling.GetBlockType() == BlockData.EBlockType.None && iNext < listPushing[i].Count-1) //空洞格子雖然沒有效果，但是普通格子可以越過，所以判斷能不能推動時，必須跳過
-                        {
-                            iNext++;
-                            blockPolling = m_listBoard[listPushing[i][iNext]];
-                        } //一路一直找，直到找到非空洞(None的格子)，或著找到底了為止
-                        if (blockPolling.GetBlockType() == BlockData.EBlockType.Normal)
-                        {
-                            //Debug.Log("Comparing(" + listPushing[i][j] + "):" + blockComparing.GetBlockValue() + " Polling(" + listPushing[i][iNext] + "):" + blockPolling.GetBlockValue());
-                            if (blockComparing.GetBlockValue() == 0 && blockPolling.GetBlockValue() != 0)
-                            {
-                                bPushAble = true;
-                            }
-                            else if (blockComparing.GetBlockValue() != 0 && blockComparing.GetBlockValue() == blockPolling.GetBlockValue())
-                            {
-                                bPushAble = true;
-                            }
-                        }
-                        break;
-                    case BlockData.EBlockType.Obstruct: //障礙格子什麼都不會做，直接跳過
-                        break;
-                    case BlockData.EBlockType.None: //空洞格子什麼也不會做，直接跳過
-                        break;
+                    bPushAble = true;
+                }
+                else if (blockComparing.GetBlockValue() != 0 && blockComparing.GetBlockValue() == blockPolling.GetBlockValue())
+                {
+                    bPushAble = true;
                 }
             }
         }
         return bPushAble;
     }
 
+    public static EPushingDirection GetOppositeDirection(EPushingDirection _eDirection)
+    {
+        EPushingDirection oppositeDirection = 0;
+        if ((int)_eDirection % 2 == 0)
+        {
+            oppositeDirection = _eDirection + 1;
+        }
+        else
+        {
+            oppositeDirection = _eDirection - 1;
+        }
+        return oppositeDirection;
+    }
     public int GetBoardSize()
     {
         return this.m_iBoardSize;

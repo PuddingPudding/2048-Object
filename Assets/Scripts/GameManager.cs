@@ -6,464 +6,260 @@ using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour
 {
-    public int iLength = 4; //棋盤邊長
-    public GameObject blockPrefab; //每個格子的遊戲物件原型
-    public Vector2 v2BlockInterval = new Vector2(60, 60); //每個格子物件間的間隔
-    public Transform tInitPosition; //第一個生成格子物件的位子
-    public Text textScore;
-    public GameObject gameOverView;//失敗時會看到的東西
-    public InputField textLengthInput; //輸入欄位，讓玩家在遊戲結束時可以自己手動輸入，決定邊長
+    public enum EGamingMode
+    {
+        Customize, //自訂
+        Standard, //標準模式，4*4
+        Small, //小格局，3*3
+        Big, //大格局，5*5
+        BigAndObstruct, //大而阻塞，5*5，並且放入4個障礙物，分別在6 8 16 18 的位子
+        BigAndNone, //大而空洞，將上面那個模式的障礙物改為可越過的空洞
+        Insane //瘋狂模式，6*6並且會隨機生成3個障礙物跟3個空洞
+    }
 
-    private List<int> iListCheckBoard; //用來紀錄整個2048棋盤中每一格數字的串列
-    private List<BlockScript> listBlockScript;//用來存取每一個格子的程式碼，格子身上的程式碼可以讓你設定顯示的數字
-    private int iScore = 0;
+    [SerializeField] private Transform m_transformInitPosition; //第一個生成格子物件的位子
+    [SerializeField] private GameObject m_gameObjBlockPrefab; //每個格子的遊戲物件原型
+    [SerializeField] private ObjectPool m_objPoolBlockPrefab;
+    [SerializeField] private Vector2 m_vec2BlockInterval = new Vector2(60, 60); //每個格子物件間的間隔
+    [SerializeField] private Text m_textScore;//計分表
+    [SerializeField] private int m_iLengthX = 4, m_iLengthY = 4; //棋盤邊長
+    [SerializeField] private EGamingMode m_eGameMode = EGamingMode.Customize;
+    [SerializeField] private InputField m_inputLengthX; //輸入欄位，讓玩家在遊戲結束時可以自己手動輸入，決定邊長X
+    [SerializeField] private InputField m_inputLengthY; //輸入欄位，讓玩家在遊戲結束時可以自己手動輸入，決定邊長Y
+    [SerializeField] private Dropdown m_dropdownGameMode; //下拉式選單，讓玩家知道自己選擇要玩什麼模式
+    [SerializeField] private GameObject m_gameObjGameOverView; //下拉式選單，讓玩家知道自己選擇要玩什麼模式
+    private List<BlockView> m_listBlockView; //用來抓到每個棋盤內格子物件的程式碼
+    private GamingLogic2048 m_game; //遊戲物件，負責真正的管理遊戲邏輯與資料
+    private int[] m_iArrSpecialBlockPos = new int[] { 6, 8, 16, 18 };
+    private bool m_bIsGaming = false;
+
     // Use this for initialization
     void Start()
     {
-        textLengthInput.text = "" + iLength;
-        InitGame();
+        m_listBlockView = new List<BlockView>();
+        InitGame(m_eGameMode);
         UpdateGame();
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.LeftArrow))
+        if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.Keypad4))
         {
-            if (this.PushAbleLeft())
+            if (m_game.GetPushAble(GamingLogic2048.EPushingDirection.Left))
             {
-                this.PushLeft();
-                this.SpawnBlock(1);
+                m_game.Pushing(GamingLogic2048.EPushingDirection.Left);
+                m_game.SpawnRandomBlock(1);
+                UpdateGame();
             }
         }
-        else if (Input.GetKeyDown(KeyCode.RightArrow))
+        else if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.Keypad6))
         {
-            if (this.PushAbleRight())
+            if (m_game.GetPushAble(GamingLogic2048.EPushingDirection.Right))
             {
-                this.PushRight();
-                this.SpawnBlock(1);
+                m_game.Pushing(GamingLogic2048.EPushingDirection.Right);
+                m_game.SpawnRandomBlock(1);
+                UpdateGame();
             }
         }
-        else if (Input.GetKeyDown(KeyCode.UpArrow))
+        else if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.Keypad8))
         {
-            if (this.PushAbleUp())
+            if (m_game.GetPushAble(GamingLogic2048.EPushingDirection.Up))
             {
-                this.PushUp();
-                this.SpawnBlock(1);
+                m_game.Pushing(GamingLogic2048.EPushingDirection.Up);
+                m_game.SpawnRandomBlock(1);
+                UpdateGame();
             }
         }
-        else if (Input.GetKeyDown(KeyCode.DownArrow))
+        else if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.Keypad2))
         {
-            if (this.PushAbleDown())
+            if (m_game.GetPushAble(GamingLogic2048.EPushingDirection.Down))
             {
-                this.PushDown();
-                this.SpawnBlock(1);
+                m_game.Pushing(GamingLogic2048.EPushingDirection.Down);
+                m_game.SpawnRandomBlock(1);
+                UpdateGame();
+            }
+        }
+        else if (Input.GetKeyDown(KeyCode.Keypad7))
+        {
+            if (m_game.GetPushAble(GamingLogic2048.EPushingDirection.TopLeft))
+            {
+                m_game.Pushing(GamingLogic2048.EPushingDirection.TopLeft);
+                m_game.SpawnRandomBlock(1);
+                UpdateGame();
+            }
+        }
+        else if (Input.GetKeyDown(KeyCode.Keypad1))
+        {
+            if (m_game.GetPushAble(GamingLogic2048.EPushingDirection.BottomLeft))
+            {
+                m_game.Pushing(GamingLogic2048.EPushingDirection.BottomLeft);
+                m_game.SpawnRandomBlock(1);
+                UpdateGame();
+            }
+        }
+        else if (Input.GetKeyDown(KeyCode.Keypad9))
+        {
+            if (m_game.GetPushAble(GamingLogic2048.EPushingDirection.TopRight))
+            {
+                m_game.Pushing(GamingLogic2048.EPushingDirection.TopRight);
+                m_game.SpawnRandomBlock(1);
+                UpdateGame();
+            }
+        }
+        else if (Input.GetKeyDown(KeyCode.Keypad3))
+        {
+            if (m_game.GetPushAble(GamingLogic2048.EPushingDirection.BottomRight))
+            {
+                m_game.Pushing(GamingLogic2048.EPushingDirection.BottomRight);
+                m_game.SpawnRandomBlock(1);
+                UpdateGame();
             }
         }
 
-        UpdateGame();
-
-        if (!PushAbleDown() && !PushAbleLeft() && !PushAbleRight() && !PushAbleUp())
+        m_bIsGaming = false;
+        foreach (GamingLogic2048.EPushingDirection eDirection in System.Enum.GetValues(typeof(GamingLogic2048.EPushingDirection)))
         {
-            this.gameOverView.SetActive(true);
+            if (m_game.GetPushAble(eDirection)) //只要其中一個方向可以過的話，就依舊先判定還可遊玩
+            {
+                m_bIsGaming = true;
+            }
+        }
+        if (!m_bIsGaming)
+        {
+            this.m_gameObjGameOverView.SetActive(true);
         }
     }
 
-    public void InitGame()
+    private void BuildBoard(int _iLengthX, int _iLengthY) //單純的把棋盤建出來，裡頭都先不要設定數字或障礙
     {
-        int newLength = System.Convert.ToInt32(textLengthInput.text); //原本使用的是int.parse()的方法，然而int.parse似乎無法處理null字串
-        if(newLength >= 2 && newLength <= 5) //若新的邊長在合理範圍，則直接設定
+        m_game = new GamingLogic2048(_iLengthX, _iLengthY, 0);
+        int iBoardSize = m_game.GetBoardSize();
+        for (int i = 0; i < iBoardSize; i++) //為實現資源管理，迴圈需要兩個條件，一個是生成格子時是否生足夠了，另一個則是去找原本的格子是否太多了，需要關閉
         {
-            iLength = newLength;
-        }//而其餘的情況則乾脆不變
-
-        if (iListCheckBoard == null && listBlockScript == null)//假設兩者(數字陣列與格子程式的陣列)都尚未生成，則幫他們新分配
-        {
-            iListCheckBoard = new List<int>();
-            listBlockScript = new List<BlockScript>();
-            for (int i = 0; i < (iLength * iLength); i++)
+            if (i >= m_listBlockView.Count) //超出了現有生成的格子範圍，表示需要額外生成
             {
-                iListCheckBoard.Add(0);
                 Vector3 initPlace = Vector3.zero;
-                initPlace.x += v2BlockInterval.x * (i % iLength);
-                initPlace.y -= v2BlockInterval.y * (i / iLength);
-                GameObject blockTemp = Instantiate(blockPrefab, initPlace, blockPrefab.transform.rotation);
-                blockTemp.transform.SetParent(tInitPosition.transform);
+                initPlace.x += m_vec2BlockInterval.x * (i % _iLengthX);
+                initPlace.y -= m_vec2BlockInterval.y * (i / _iLengthX);
+                GameObject blockTemp = m_objPoolBlockPrefab.GetBlockPrefab();
+                blockTemp.transform.SetParent(m_transformInitPosition.transform);
                 blockTemp.transform.localPosition = initPlace;
-                BlockScript BSTemp = blockTemp.GetComponent<BlockScript>();
-                listBlockScript.Add(BSTemp);
+                BlockView BVTemp = blockTemp.GetComponent<BlockView>();
+                m_listBlockView.Add(BVTemp);
+            }
+            else if (i < iBoardSize && i < m_listBlockView.Count) //還需要格子，但原本所生成的格子還夠用時，將舊有的格子移動到我們需要的地方
+            {
+                Vector3 initPlace = Vector3.zero;
+                initPlace.x += m_vec2BlockInterval.x * (i % _iLengthX);
+                initPlace.y -= m_vec2BlockInterval.y * (i / _iLengthX);
+                m_listBlockView[i].transform.localPosition = initPlace;
+                m_listBlockView[i].transform.gameObject.SetActive(true);
             }
         }
-        else //其餘狀況，也就是已經有先生成過了，只是要重玩
+        //以下，在每次做完排格子迴圈後，將多出來的格子關閉，在C#當中若要將某個範圍的list刪除的話可以先請另一個暫存的list先幫你抓著，接著再請該list一一將物件轉入物件池
+        List<BlockView> listToRemove =  m_listBlockView.GetRange(iBoardSize, m_listBlockView.Count - iBoardSize); 
+        m_listBlockView.RemoveRange(iBoardSize, m_listBlockView.Count - iBoardSize); 
+        foreach(BlockView blockView in listToRemove)
         {
-            for (int i = 0; i < (iLength * iLength) || i < listBlockScript.Count; i++)
-            {//這裡的迴圈判斷條件有兩個，因為如果新的棋盤較大的話，那原本的list就需要擴增，但如果新棋盤較小的話，那原本list多出來的部分就需要先關閉(但不要刪掉)
-
-                if (i < (iLength * iLength) && i < listBlockScript.Count) //假如目前新格子的編號還在原本的list範圍內的話
-                {
-                    iListCheckBoard[i] = 0;
-                    Vector3 initPlace = Vector3.zero;
-                    initPlace.x += v2BlockInterval.x * (i % iLength);
-                    initPlace.y -= v2BlockInterval.y * (i / iLength);
-                    listBlockScript[i].gameObject.SetActive(true);
-                    listBlockScript[i].transform.SetParent(tInitPosition.transform);
-                    listBlockScript[i].transform.localPosition = initPlace;
-                }
-                else if (i < (iLength * iLength) && i >= listBlockScript.Count) //假如目前新格子的編號已經超出，則需要額外再生成格子物件給新棋盤
-                {
-                    iListCheckBoard.Add(0);
-                    Vector3 initPlace = Vector3.zero;
-                    initPlace.x += v2BlockInterval.x * (i % iLength);
-                    initPlace.y -= v2BlockInterval.y * (i / iLength);
-                    GameObject blockTemp = Instantiate(blockPrefab, initPlace, blockPrefab.transform.rotation);
-                    blockTemp.transform.SetParent(tInitPosition.transform);
-                    blockTemp.transform.localPosition = initPlace;
-                    BlockScript BSTemp = blockTemp.GetComponent<BlockScript>();
-                    listBlockScript.Add(BSTemp);
-                }
-                else if (i >= (iLength * iLength) && i < listBlockScript.Count) //假如目前的編號已經超出了新格子的需求，那就將原本list多出來的物件先關閉
-                {
-                    listBlockScript[i].gameObject.SetActive(false);
-                }
-            }
+            m_objPoolBlockPrefab.BackToBlockPool(blockView.gameObject);
         }
-        iScore = 0;
-        gameOverView.SetActive(false);
-        SpawnBlock(2);
-    }
 
-    public void SpawnBlock(int iSpawnNum)
+        this.m_gameObjGameOverView.SetActive(false);
+    }
+    private void InitGame(EGamingMode _eGameMode)
     {
-        for (int i = 0; i < iSpawnNum; i++)
+        switch (_eGameMode)
         {
-            int iBlockNum = Random.Range(1, 3) * 2;
-            int iBlockChose = Random.Range(0, (iLength * iLength));
-            bool canSpawn = false;
-            for (int j = 0; j < (iLength * iLength) && !canSpawn; j++)
-            {
-                if (iListCheckBoard[j] == 0)
+            case EGamingMode.Customize:
+                BuildBoard(m_iLengthX, m_iLengthY);
+                break;
+            case EGamingMode.Standard:
+                BuildBoard(4, 4);
+                break;
+            case EGamingMode.Small:
+                BuildBoard(3, 3);
+                break;
+            case EGamingMode.Big:
+                BuildBoard(5, 5);
+                break;
+            case EGamingMode.BigAndObstruct:
+                BuildBoard(5, 5);
+                for (int i = 0; i < m_iArrSpecialBlockPos.Length; i++)
                 {
-                    canSpawn = true; //如果陣列裡還有空值(0)的話，就設定為可以生成
+                    m_game.SpawnBlock(m_iArrSpecialBlockPos[i], new BlockData(BlockData.EBlockType.Obstruct));
                 }
-            }
-            while (iListCheckBoard[iBlockChose] != 0 && canSpawn) //一直跑回圈檢察，直到隨機挑出一個還未有數字(0)的空格為止
-            {
-                iBlockChose = Random.Range(0, iListCheckBoard.Count);
-            }
-            if (canSpawn)
-            {
-                iListCheckBoard[iBlockChose] = iBlockNum;
-            }
+                break;
+            case EGamingMode.BigAndNone:
+                BuildBoard(5, 5);
+                for (int i = 0; i < m_iArrSpecialBlockPos.Length; i++)
+                {
+                    m_game.SpawnBlock(m_iArrSpecialBlockPos[i], new BlockData(BlockData.EBlockType.None));
+                }
+                break;
+            case EGamingMode.Insane:
+                BuildBoard(6, 6);
+                for (int i = 0; i < 3; i++)
+                {
+                    m_game.SpawnBlock(Random.Range(0, m_game.GetBoardSize()), new BlockData(BlockData.EBlockType.Obstruct));
+                }
+                for (int i = 0; i < 3; i++)
+                {
+                    m_game.SpawnBlock(Random.Range(0, m_game.GetBoardSize()), new BlockData(BlockData.EBlockType.None));
+                }
+                break;
         }
+        m_game.SpawnRandomBlock(2);
+        m_bIsGaming = true;
     }
-
     public void UpdateGame()
     {
-        for (int i = 0; i < (iLength * iLength); i++) //改寫為棋盤邊長的平方，因為未來如果玩家先生成了一個4*4的棋盤，而後又改玩2*2的話，那裝數字的列表就會變得過長
+        int iBoardSize = m_game.GetBoardSize();
+        List<BlockData> listBoardData = m_game.GetBoardData();
+        for (int i = 0; i < iBoardSize; i++)
         {
-            listBlockScript[i].SetText(iListCheckBoard[i]);
+            m_listBlockView[i].SetBlock(listBoardData[i]);
         }
-        textScore.text = "score: " + this.iScore;
+        m_textScore.text = "score: " + m_game.GetScore();
     }
-
-    public void PushLeft()
+    public void InitGameOnClick()
     {
-        int iComparing; //正在受比對的格子索引值
-        int iPolling; //輪尋格子的索引值
-        bool pollFinish = false; //這一波輪尋是否已結束
-        for (int i = 0; i < iLength; i++)
+        switch (m_dropdownGameMode.value)
         {
-            for (int j = 0; j < iLength; j++)
-            {
-                pollFinish = false;
-                iComparing = (i * iLength) + j;
-                iPolling = iComparing + 1;
-                while (!pollFinish)
+            case 0:
+                m_eGameMode = EGamingMode.Customize;
+                int iNewLengthX = System.Convert.ToInt32(m_inputLengthX.text); //原本使用的是int.parse()的方法，然而int.parse似乎無法處理null字串
+                int iNewLengthY = System.Convert.ToInt32(m_inputLengthY.text); //System.Conver.ToInt32會將null字串轉為0來做處理
+                if (iNewLengthX >= 2 && iNewLengthX <= 5) //若新的邊長在合理範圍，則直接設定
                 {
-                    if (iPolling >= (i + 1) * iLength)//若輪尋格子超出了目前的這條行線
-                    {
-                        pollFinish = true;
-                    }
-                    else if (iListCheckBoard[iPolling] != 0)//若輪尋格子有東西(不為0)
-                    {
-                        if (iListCheckBoard[iComparing] == 0)//但受比對的格子是空的(0)的話，那就直接把數字搬過來
-                        {
-                            iListCheckBoard[iComparing] = iListCheckBoard[iPolling];
-                            iListCheckBoard[iPolling] = 0;
-                        }
-                        else //其餘狀況，也就是當受比對的格子有東西(不為0)
-                        {
-                            if (iListCheckBoard[iComparing] == iListCheckBoard[iPolling])//若比對者與輪尋者皆同，兩者合併
-                            {
-                                iListCheckBoard[iComparing] += iListCheckBoard[iPolling];
-                                this.iScore += iListCheckBoard[iComparing];
-                                iListCheckBoard[iPolling] = 0;
-                            }
-                            else if (iListCheckBoard[iComparing + 1] == 0)//若比對者的隔壁沒東西(0)，那就把輪尋到的那個數字直接搬過來
-                            {
-                                iListCheckBoard[iComparing + 1] += iListCheckBoard[iPolling];
-                                iListCheckBoard[iPolling] = 0;
-                            }
-                            pollFinish = true;
-                        }
-                    }
-                    else//其餘狀況，也就是當輪尋格子沒東西(0)，且輪尋值也還未到底時
-                    {
-                        iPolling++;
-                    }
-                }
-            }
+                    m_iLengthX = iNewLengthX;
+                }//而其餘的情況則乾脆不變
+                if (iNewLengthY >= 2 && iNewLengthY <= 5) //若新的邊長在合理範圍，則直接設定
+                {
+                    m_iLengthY = iNewLengthY;
+                }//而其餘的情況則乾脆不變
+                break;
+            case 1:
+                m_eGameMode = EGamingMode.Standard;
+                break;
+            case 2:
+                m_eGameMode = EGamingMode.Small;
+                break;
+            case 3:
+                m_eGameMode = EGamingMode.Big;
+                break;
+            case 4:
+                m_eGameMode = EGamingMode.BigAndObstruct;
+                break;
+            case 5:
+                m_eGameMode = EGamingMode.BigAndNone;
+                break;
+            case 6:
+                m_eGameMode = EGamingMode.Insane;
+                break;
         }
-    }
-
-    public bool PushAbleLeft()
-    {
-        bool pushAble = false; //是否能推
-        int iChecking;//檢查用的格子，從最開始(第0個)檢查到最後
-        for (int i = 0; i < iLength && !pushAble; i++)
-        {
-            for (int j = 0; j < iLength - 1 && !pushAble; j++)
-            {
-                iChecking = (i * iLength) + j;
-                if (iListCheckBoard[iChecking] == 0)
-                {
-                    if (iListCheckBoard[iChecking + 1] != 0)
-                    {
-                        pushAble = true;
-                    }
-                }
-                else if (iListCheckBoard[iChecking] == iListCheckBoard[iChecking + 1])
-                {
-                    pushAble = true;
-                }
-            }
-        }
-        return pushAble;
-    }
-
-    public void PushRight()
-    {
-        int iComparing; //正在受比對的格子索引值
-        int iPolling; //輪尋格子的索引值
-        bool pollFinish = false; //這一波輪尋是否已結束
-        for (int i = 0; i < iLength; i++)
-        {
-            for (int j = 0; j < iLength; j++)
-            {
-                pollFinish = false;
-                iComparing = ((i + 1) * iLength - 1) - j;
-                iPolling = iComparing - 1;
-                while (!pollFinish)
-                {
-                    if (iPolling < (i * iLength))//若輪尋格子超出了目前的這條行線
-                    {
-                        pollFinish = true;
-                    }
-                    else if (iListCheckBoard[iPolling] != 0)//若輪尋格子有東西(不為0)
-                    {
-                        if (iListCheckBoard[iComparing] == 0)//但受比對的格子是空的(0)的話，那就直接把數字搬過來
-                        {
-                            iListCheckBoard[iComparing] = iListCheckBoard[iPolling];
-                            iListCheckBoard[iPolling] = 0;
-                        }
-                        else //其餘狀況，也就是當受比對的格子有東西(不為0)
-                        {
-                            if (iListCheckBoard[iComparing] == iListCheckBoard[iPolling])//若比對者與輪尋者皆同，兩者合併
-                            {
-                                iListCheckBoard[iComparing] += iListCheckBoard[iPolling];
-                                this.iScore += iListCheckBoard[iComparing];
-                                iListCheckBoard[iPolling] = 0;
-                            }
-                            else if (iListCheckBoard[iComparing - 1] == 0)//若比對者的隔壁沒東西(0)，那就把輪尋到的那個數字直接搬過來
-                            {
-                                iListCheckBoard[iComparing - 1] += iListCheckBoard[iPolling];
-                                iListCheckBoard[iPolling] = 0;
-                            }
-                            pollFinish = true;
-                        }
-                    }
-                    else//其餘狀況，也就是當輪尋格子沒東西(0)，且輪尋值也還未到底時
-                    {
-                        iPolling--;
-                    }
-                }
-            }
-        }
-    }
-
-    public bool PushAbleRight()
-    {
-        bool pushAble = false; //是否能推
-        int iChecking;//檢查用的格子，從最開始(第0個)檢查到最後
-        for (int i = 0; i < iLength && !pushAble; i++)
-        {
-            for (int j = 0; j < iLength - 1 && !pushAble; j++)
-            {
-                iChecking = ((i + 1) * iLength - 1) - j;
-                if (iListCheckBoard[iChecking] == 0)
-                {
-                    if (iListCheckBoard[iChecking - 1] != 0)
-                    {
-                        pushAble = true;
-                    }
-                }
-                else if (iListCheckBoard[iChecking] == iListCheckBoard[iChecking - 1])
-                {
-                    pushAble = true;
-                }
-            }
-        }
-        return pushAble;
-    }
-
-    public void PushUp()
-    {
-        int iComparing; //正在受比對的格子索引值
-        int iPolling; //輪尋格子的索引值
-        bool pollFinish = false; //這一波輪尋是否已結束
-        for (int i = 0; i < iLength; i++)
-        {
-            for (int j = 0; j < iLength; j++)
-            {
-                pollFinish = false;
-                iComparing = i + (j * iLength);
-                iPolling = iComparing + iLength;
-                while (!pollFinish)
-                {
-                    if (iPolling >= iLength * iLength)//若輪尋格子超出了目前的這條行線
-                    {
-                        pollFinish = true;
-                    }
-                    else if (iListCheckBoard[iPolling] != 0)//若輪尋格子有東西(不為0)
-                    {
-                        if (iListCheckBoard[iComparing] == 0)//但受比對的格子是空的(0)的話，那就直接把數字搬過來
-                        {
-                            iListCheckBoard[iComparing] = iListCheckBoard[iPolling];
-                            iListCheckBoard[iPolling] = 0;
-                        }
-                        else //其餘狀況，也就是當受比對的格子有東西(不為0)
-                        {
-                            if (iListCheckBoard[iComparing] == iListCheckBoard[iPolling])//若比對者與輪尋者皆同，兩者合併
-                            {
-                                iListCheckBoard[iComparing] += iListCheckBoard[iPolling];
-                                this.iScore += iListCheckBoard[iComparing];
-                                iListCheckBoard[iPolling] = 0;
-                            }
-                            else if (iListCheckBoard[iComparing + iLength] == 0)//若比對者的隔壁沒東西(0)，那就把輪尋到的那個數字直接搬過來
-                            {
-                                iListCheckBoard[iComparing + iLength] += iListCheckBoard[iPolling];
-                                iListCheckBoard[iPolling] = 0;
-                            }
-                            pollFinish = true;
-                        }
-                    }
-                    else//其餘狀況，也就是當輪尋格子沒東西(0)，且輪尋值也還未到底時
-                    {
-                        iPolling += iLength;
-                    }
-                }
-            }
-        }
-    }
-
-    public bool PushAbleUp()
-    {
-        bool pushAble = false; //是否能推
-        int iChecking;//檢查用的格子，從最開始(第0個)檢查到最後
-        for (int i = 0; i < iLength && !pushAble; i++)
-        {
-            for (int j = 0; j < iLength - 1 && !pushAble; j++)
-            {
-                iChecking = i + (j * iLength);
-                if (iListCheckBoard[iChecking] == 0)
-                {
-                    if (iListCheckBoard[iChecking + iLength] != 0)
-                    {
-                        pushAble = true;
-                    }
-                }
-                else if (iListCheckBoard[iChecking] == iListCheckBoard[iChecking + iLength])
-                {
-                    pushAble = true;
-                }
-            }
-        }
-        return pushAble;
-    }
-
-    public void PushDown()
-    {
-        int iComparing; //正在受比對的格子索引值
-        int iPolling; //輪尋格子的索引值
-        bool pollFinish = false; //這一波輪尋是否已結束
-        for (int i = 0; i < iLength; i++)
-        {
-            for (int j = 0; j < iLength; j++)
-            {
-                pollFinish = false;
-                iComparing = i + ((iLength - 1) - j) * iLength;
-                iPolling = iComparing - iLength;
-                while (!pollFinish)
-                {
-                    if (iPolling < 0)//若輪尋格子超出了目前的這條行線
-                    {
-                        pollFinish = true;
-                    }
-                    else if (iListCheckBoard[iPolling] != 0)//若輪尋格子有東西(不為0)
-                    {
-                        if (iListCheckBoard[iComparing] == 0)//但受比對的格子是空的(0)的話，那就直接把數字搬過來
-                        {
-                            iListCheckBoard[iComparing] = iListCheckBoard[iPolling];
-                            iListCheckBoard[iPolling] = 0;
-                        }
-                        else //其餘狀況，也就是當受比對的格子有東西(不為0)
-                        {
-                            if (iListCheckBoard[iComparing] == iListCheckBoard[iPolling])//若比對者與輪尋者皆同，兩者合併
-                            {
-                                iListCheckBoard[iComparing] += iListCheckBoard[iPolling];
-                                this.iScore += iListCheckBoard[iComparing];
-                                iListCheckBoard[iPolling] = 0;
-                            }
-                            else if (iListCheckBoard[iComparing - iLength] == 0)//若比對者的隔壁沒東西(0)，那就把輪尋到的那個數字直接搬過來
-                            {
-                                iListCheckBoard[iComparing - iLength] += iListCheckBoard[iPolling];
-                                iListCheckBoard[iPolling] = 0;
-                            }
-                            pollFinish = true;
-                        }
-                    }
-                    else//其餘狀況，也就是當輪尋格子沒東西(0)，且輪尋值也還未到底時
-                    {
-                        iPolling -= iLength;
-                    }
-                }
-            }
-        }
-    }
-
-    public bool PushAbleDown()
-    {
-        bool pushAble = false; //是否能推
-        int iChecking;//檢查用的格子，從最開始(第0個)檢查到最後
-        for (int i = 0; i < iLength && !pushAble; i++)
-        {
-            for (int j = 0; j < iLength - 1 && !pushAble; j++)
-            {
-                iChecking = i + ((iLength - 1) - j) * iLength;
-                if (iListCheckBoard[iChecking] == 0)
-                {
-                    if (iListCheckBoard[iChecking - iLength] != 0)
-                    {
-                        pushAble = true;
-                    }
-                }
-                else if (iListCheckBoard[iChecking] == iListCheckBoard[iChecking - iLength])
-                {
-                    pushAble = true;
-                }
-            }
-        }
-        return pushAble;
+        this.InitGame(m_eGameMode);
+        this.UpdateGame();
     }
 
 }
